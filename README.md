@@ -71,6 +71,20 @@ Before you begin, ensure you have met the following requirements:
         Click on your application.
         Set the Redirect URIs field to: http://localhost:3000/callback or any other URI you plan to use.
 
+## 🏃‍♂️ Running the Bot
+
+    Start the bot locally:
+
+        node index.js
+
+        1. If you see a message like Logged in as MoodTunes#1234, the bot is successfully running!
+
+        2. Invite the bot to your server using the following URL (replace CLIENT_ID with your bot's client ID):
+        
+            https://discord.com/oauth2/authorize?client_id=CLIENT_ID&permissions=8&scope=bot%20applications.commands
+            
+
+
 # 💬 Commands
 ## 🎶 Mood Command
 
