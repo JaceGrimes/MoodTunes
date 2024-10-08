@@ -1,91 +1,60 @@
-// Import required modules
-const { Client, GatewayIntentBits } = require('discord.js');
-const axios = require('axios');
+const fs = require('fs');
+const path = require('path');
+const { Client, Collection, GatewayIntentBits } = require('discord.js');
 require('dotenv').config();
 
-// Create a new client instance
 const client = new Client({
   intents: [
     GatewayIntentBits.Guilds,
-    GatewayIntentBits.GuildMessages,
-    GatewayIntentBits.MessageContent,
   ],
 });
 
-// Spotify and YouTube credentials
-const SPOTIFY_CLIENT_ID = process.env.SPOTIFY_CLIENT_ID;
-const SPOTIFY_CLIENT_SECRET = process.env.SPOTIFY_CLIENT_SECRET;
-const YOUTUBE_API_KEY = process.env.YOUTUBE_API_KEY;
+// Load commands
+client.commands = new Collection();
+const commandFolders = fs.readdirSync('./commands');
+for (const folder of commandFolders) {
+  const commandFiles = fs.readdirSync(`./commands/${folder}`).filter(file => file.endsWith('.js'));
+  for (const file of commandFiles) {
+    const command = require(`./commands/${folder}/${file}`);
+    client.commands.set(command.data.name, command);
+  }
+}
 
-// Authenticate with Spotify API
-let spotifyToken = '';
-const authenticateSpotify = async () => {
+// Load events
+const eventFiles = fs.readdirSync('./events').filter(file => file.endsWith('.js'));
+for (const file of eventFiles) {
+  const event = require(`./events/${file}`);
+  if (event.once) {
+    client.once(event.name, (...args) => event.execute(...args, client));
+  } else {
+    client.on(event.name, (...args) => event.execute(...args, client));
+  }
+}
+
+const { REST, Routes } = require('discord.js');
+
+const commands = [];
+for (const [name, command] of client.commands) {
+  commands.push(command.data.toJSON());
+}
+
+const rest = new REST({ version: '10' }).setToken(process.env.DISCORD_TOKEN);
+
+(async () => {
   try {
-    const response = await axios.post('https://accounts.spotify.com/api/token', null, {
-      headers: {
-        'Content-Type': 'application/x-www-form-urlencoded',
-        Authorization: `Basic ${Buffer.from(`${SPOTIFY_CLIENT_ID}:${SPOTIFY_CLIENT_SECRET}`).toString('base64')}`,
-      },
-      params: {
-        grant_type: 'client_credentials',
-      },
-    });
-    spotifyToken = response.data.access_token;
+    console.log('Started refreshing application (/) commands.');
+
+    await rest.put(
+      Routes.applicationGuildCommands(process.env.CLIENT_ID, config.guildId),
+      { body: commands },
+    );
+
+    console.log('Successfully reloaded application (/) commands.');
   } catch (error) {
-    console.error('Error authenticating with Spotify:', error);
+    console.error(error);
   }
-};
+})();
 
-// Ready event - This will run when the bot is logged in and ready
-client.once('ready', () => {
-  console.log(`Logged in as ${client.user.tag}!`);
-  authenticateSpotify(); // Authenticate with Spotify when bot is ready
-});
-
-// Command Handling
-client.on('messageCreate', async (message) => {
-  // Ignore messages from bots
-  if (message.author.bot) return;
-
-  // Mood-based song recommendation
-  if (message.content.startsWith('!mood')) {
-    const mood = message.content.split(' ')[1]?.toLowerCase();
-
-    if (mood) {
-      const spotifyTrack = await getSpotifyTrack(mood);
-      if (spotifyTrack) {
-        message.channel.send(`Here's a song that matches your mood (${mood}): ${spotifyTrack}`);
-      } else {
-        message.channel.send(`Sorry, I couldn't find a song for the mood: ${mood}.`);
-      }
-    } else {
-      message.channel.send('Please specify a mood. Example: `!mood happy`');
-    }
-  }
-});
-
-// Get a Spotify track based on mood
-const getSpotifyTrack = async (mood) => {
-  try {
-    const response = await axios.get(`https://api.spotify.com/v1/recommendations`, {
-      headers: {
-        Authorization: `Bearer ${spotifyToken}`,
-      },
-      params: {
-        seed_genres: mood,
-        limit: 1,
-      },
-    });
-
-    if (response.data.tracks.length > 0) {
-      const track = response.data.tracks[0];
-      return `${track.name} by ${track.artists.map((artist) => artist.name).join(', ')} - ${track.external_urls.spotify}`;
-    }
-  } catch (error) {
-    console.error('Error fetching track from Spotify:', error);
-  }
-  return null;
-};
 
 // Log in to Discord
 client.login(process.env.DISCORD_TOKEN);
