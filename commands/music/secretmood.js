@@ -25,7 +25,7 @@ module.exports = {
           .addFields(
             { name: 'Artist', value: artistName, inline: true },
             { name: 'Album', value: albumName, inline: true },
-            { name: 'Listen on Spotify', value: `[Click here to listen!](${url})`, inline: false }
+            { name: 'Listen on Spotify', value: `[Listen to ${songTitle}!](${url})`, inline: false }
           )
           .setThumbnail(albumArt || 'https://upload.wikimedia.org/wikipedia/en/a/ae/Daft_Punk_logo.svg') // Use album art as thumbnail if available
           .setFooter({
